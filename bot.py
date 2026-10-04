@@ -71,10 +71,12 @@ def main_keyboard():
     btn_inline = types.KeyboardButton("منوی شیشه‌ای")
     btn_photo = types.KeyboardButton("عکس")
     btn_file = types.KeyboardButton("فایل")
+    btn_contact = types.KeyboardButton("پیام به ادمین")
     keyboard.add(btn_help, btn_time)
     keyboard.add(btn_date, btn_about)
     keyboard.add(btn_setname, btn_inline)
     keyboard.add(btn_photo, btn_file)
+    keyboard.add(btn_contact)
     return keyboard
 
 def inline_menu():
@@ -130,7 +132,8 @@ def send_help(message):
         "ثبت اسم - ثبت اسم خودت\n"
         "منوی شیشه‌ای - نمایش دکمه‌های شیشه‌ای\n"
         "عکس - ارسال یه عکس نمونه\n"
-        "فایل - ارسال یه فایل نمونه"
+        "فایل - ارسال یه فایل نمونه\n"
+        "پیام به ادمین - ارسال پیام به مدیر ربات"
     )
     bot.reply_to(message, text)
 
@@ -157,6 +160,71 @@ def send_photo(message):
 def send_file(message):
     file_url = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
     bot.send_document(message.chat.id, file_url, caption="این یه فایل PDF نمونه‌ست.")
+
+# ---------------- پیام به ادمین ----------------
+@bot.message_handler(commands=["contact"])
+def ask_contact(message):
+    bot.reply_to(message, "پیامت چیه؟ بنویس تا به ادمین برسونم.\nبرای لغو، بنویس /cancel")
+    bot.register_next_step_handler(message, send_to_admin)
+
+def send_to_admin(message):
+    user_id = message.from_user.id
+    text = message.text.strip()
+    
+    if text == "/cancel":
+        bot.reply_to(message, "لغو شد.")
+        return
+    
+    if not text:
+        bot.reply_to(message, "پیام نمی‌تونه خالی باشه.")
+        return
+    
+    if not ADMIN_ID:
+        bot.reply_to(message, "ادمین تنظیم نشده. بعداً امتحان کن.")
+        return
+    
+    name = get_user_name(user_id) or message.from_user.first_name or "کاربر"
+    
+    admin_text = (
+        f"📩 پیام جدید از کاربر:\n\n"
+        f"👤 اسم: {name}\n"
+        f"🆔 آیدی: {user_id}\n\n"
+        f"💬 پیام:\n{text}\n\n"
+        f"برای پاسخ، روی همین پیام Reply بزن."
+    )
+    
+    try:
+        bot.send_message(ADMIN_ID, admin_text)
+        bot.reply_to(message, "پیامت به ادمین رسید. ممنون!")
+    except Exception as e:
+        print(f"Send to admin error: {e}")
+        bot.reply_to(message, "متأسفانه ارسال نشد. بعداً امتحان کن.")
+
+# ---------------- پاسخ ادمین به کاربر ----------------
+@bot.message_handler(func=lambda message: is_admin(message.from_user.id) and message.reply_to_message is not None)
+def admin_reply(message):
+    reply_to = message.reply_to_message
+    
+    # چک کن پیام ریپلای شده، پیام کاربر بوده
+    if not reply_to.text or "🆔 آیدی:" not in reply_to.text:
+        return
+    
+    # آیدی کاربر رو از متن استخراج کن
+    try:
+        lines = reply_to.text.split("\n")
+        user_id_line = [l for l in lines if "🆔 آیدی:" in l][0]
+        user_id = int(user_id_line.replace("🆔 آیدی:", "").strip())
+    except Exception as e:
+        print(f"Extract user id error: {e}")
+        return
+    
+    # جواب ادمین رو به کاربر بفرست
+    try:
+        bot.send_message(user_id, f"📬 پاسخ ادمین:\n\n{message.text}")
+        bot.reply_to(message, "پاسخ ارسال شد. ✅")
+    except Exception as e:
+        print(f"Reply to user error: {e}")
+        bot.reply_to(message, "متأسفانه ارسال نشد.")
 
 # ---------------- دستورهای ادمین ----------------
 @bot.message_handler(commands=["stats"])
@@ -232,6 +300,10 @@ def btn_photo(message):
 def btn_file(message):
     send_file(message)
 
+@bot.message_handler(func=lambda message: message.text == "پیام به ادمین")
+def btn_contact(message):
+    ask_contact(message)
+
 # ---------------- دکمه‌های شیشه‌ای ----------------
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
@@ -247,6 +319,10 @@ def handle_callback(call):
 # ---------------- پیام‌های معمولی ----------------
 @bot.message_handler(func=lambda message: True)
 def echo(message):
+    # اگه ادمین داره به یه پیام ریپلای می‌زنه، این تابع نباید اجرا بشه
+    if is_admin(message.from_user.id) and message.reply_to_message:
+        return
+    
     user_id = message.from_user.id
     name = get_user_name(user_id)
     
