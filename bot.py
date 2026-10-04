@@ -8,6 +8,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telebot import types
 
 TOKEN = os.environ.get("BOT_TOKEN")
+ADMIN_ID = os.environ.get("ADMIN_ID")
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -45,6 +46,19 @@ def get_user_name(user_id):
     result = cursor.fetchone()
     conn.close()
     return result[0] if result else None
+
+def get_all_users():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id FROM users")
+    result = cursor.fetchall()
+    conn.close()
+    return [row[0] for row in result]
+
+def is_admin(user_id):
+    if not ADMIN_ID:
+        return False
+    return str(user_id) == str(ADMIN_ID)
 
 # ---------------- کیبورد ----------------
 def main_keyboard():
@@ -143,6 +157,47 @@ def send_photo(message):
 def send_file(message):
     file_url = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
     bot.send_document(message.chat.id, file_url, caption="این یه فایل PDF نمونه‌ست.")
+
+# ---------------- دستورهای ادمین ----------------
+@bot.message_handler(commands=["stats"])
+def send_stats(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "اجازه نداری.")
+        return
+    
+    users = get_all_users()
+    bot.reply_to(message, f"تعداد کاربران: {len(users)}")
+
+@bot.message_handler(commands=["broadcast"])
+def ask_broadcast(message):
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, "اجازه نداری.")
+        return
+    
+    bot.reply_to(message, "پیام همگانی رو بنویس:")
+    bot.register_next_step_handler(message, send_broadcast)
+
+def send_broadcast(message):
+    if not is_admin(message.from_user.id):
+        return
+    
+    text = message.text.strip()
+    if not text:
+        bot.reply_to(message, "پیام نمی‌تونه خالی باشه.")
+        return
+    
+    users = get_all_users()
+    count = 0
+    
+    for user_id in users:
+        try:
+            bot.send_message(user_id, text)
+            count += 1
+            time.sleep(0.05)
+        except Exception:
+            pass
+    
+    bot.reply_to(message, f"پیام به {count} کاربر ارسال شد.")
 
 # ---------------- دکمه‌های کیبورد ----------------
 @bot.message_handler(func=lambda message: message.text == "راهنما")
