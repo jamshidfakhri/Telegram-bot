@@ -9,22 +9,26 @@ bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=["start"])
 def start(message):
-    bot.send_message(message.chat.id, "salam! man ye robotam. harfi dari? benevis ta javab bedam")
+    bot.send_message(message.chat.id, "salam! man ye robotam.\nسلام! من یه رباتم.\n\nharfi dari? benevis ta javab bedam\nحرفی داری؟ بنویس تا جواب بدم")
 
 @bot.message_handler(func=lambda message: True)
 def reply(message):
-    text = message.text.lower()
+    text = message.text.lower().strip()
     
-    if text == "salam":
-        bot.send_message(message.chat.id, "salam! chetori?")
-    elif text == "khubi?":
-        bot.send_message(message.chat.id, "man ke khubam, to chetori?")
-    elif text == "esmet chiye?":
-        bot.send_message(message.chat.id, "esmam robot hast")
-    elif text == "khodahafez":
-        bot.send_message(message.chat.id, "khodahafez! movazebe khodet bash")
+    if text in ["salam", "سلام", "hi", "hello"]:
+        bot.send_message(message.chat.id, "salam! chetori?\nسلام! چطوری؟")
+    
+    elif text in ["khubi?", "khubi", "خوبی؟", "خوبی", "chetori?", "chetori", "چطوری؟", "چطوری"]:
+        bot.send_message(message.chat.id, "man khubam, to chetori?\nمن خوبم، تو چطوری؟")
+    
+    elif text in ["esmet chiye?", "esmet chiye", "اسمت چیه؟", "اسمت چیه", "what is your name?", "what is your name"]:
+        bot.send_message(message.chat.id, "esmam robot hast\nاسمم ربات هست")
+    
+    elif text in ["khodahafez", "خداحافظ", "bye", "goodbye"]:
+        bot.send_message(message.chat.id, "khodahafez! movazebe khodet bash\nخداحافظ! مواظب خودت باش")
+    
     else:
-        bot.send_message(message.chat.id, "nemifahmam chi migi. farsi benevis lotfan")
+        bot.send_message(message.chat.id, "nemifahmam chi migi. lotfan farsi ya engilisi benevis\nنمی‌فهمم چی می‌گی. لطفاً فارسی یا انگلیسی بنویس")
 
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
