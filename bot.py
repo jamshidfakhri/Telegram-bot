@@ -5,7 +5,6 @@ import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from langdetect import detect, DetectorFactory
 from openai import OpenAI
-from telebot import types
 
 DetectorFactory.seed = 0
 
@@ -89,43 +88,26 @@ def handle_message(message):
     ai_reply = get_ai_response(user_id, user_text, lang)
     bot.reply_to(message, ai_reply)
 
-class Handler(BaseHTTPRequestHandler):
+class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Bot is running")
 
-    def do_POST(self):
-        if self.path == f"/{TOKEN}":
-            length = int(self.headers['Content-Length'])
-            data = self.rfile.read(length)
-            update = types.Update.de_json(data.decode('utf-8'))
-            bot.process_new_updates([update])
-            self.send_response(200)
-            self.end_headers()
-        else:
-            self.send_response(404)
-            self.end_headers()
-
-    def log_message(self, format, *args):
-        pass
-
 def run_server():
     port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), Handler)
+    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
     server.serve_forever()
 
 if __name__ == "__main__":
+    # حذف هر Webhook موجود
     bot.remove_webhook()
-    time.sleep(3)
+    time.sleep(2)
     
-    WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://jamshids-worker.onrender.com")
-    bot.set_webhook(url=f"{WEBHOOK_URL}/{TOKEN}")
-    
+    # اجرای وب‌سرور در پس‌زمینه
     t = threading.Thread(target=run_server)
     t.daemon = True
     t.start()
     
     print("bot roshan shod...")
-    while True:
-        time.sleep(10)
+    bot.infinity_polling()
