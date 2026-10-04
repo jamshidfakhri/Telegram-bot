@@ -2,33 +2,92 @@ import telebot
 import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from langdetect import detect, DetectorFactory
+from openai import OpenAI
+
+DetectorFactory.seed = 0
 
 TOKEN = os.environ.get("BOT_TOKEN")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
+)
+
+MODEL_NAME = "meta-llama/llama-3.3-70b-instruct:free"
 
 bot = telebot.TeleBot(TOKEN)
 
-@bot.message_handler(commands=["start"])
-def start(message):
-    bot.send_message(message.chat.id, "salam! man ye robotam.\nسلام! من یه رباتم.\n\nharfi dari? benevis ta javab bedam\nحرفی داری؟ بنویس تا جواب بدم")
+user_histories = {}
+
+def get_ai_response(user_id, user_message, user_lang):
+    if user_id not in user_histories:
+        user_histories[user_id] = []
+    
+    user_histories[user_id].append({"role": "user", "content": user_message})
+    
+    if user_lang == 'fa':
+        system_prompt = "You are a helpful and friendly AI assistant. The user is speaking Persian. You MUST reply in Persian (Farsi)."
+    else:
+        system_prompt = "You are a helpful and friendly AI assistant. You MUST reply in English."
+    
+    messages = [{"role": "system", "content": system_prompt}] + user_histories[user_id]
+    
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=messages,
+            temperature=0.7,
+        )
+        
+        ai_reply = response.choices[0].message.content
+        user_histories[user_id].append({"role": "assistant", "content": ai_reply})
+        
+        if len(user_histories[user_id]) > 20:
+            user_histories[user_id] = user_histories[user_id][-20:]
+        
+        return ai_reply
+        
+    except Exception as e:
+        print(f"AI error: {e}")
+        if user_lang == 'fa':
+            return "متأسفم، الان نمی‌تونم جواب بدم. لطفاً بعداً امتحان کن."
+        else:
+            return "Sorry, I can't respond right now. Please try again later."
+
+@bot.message_handler(commands=["start", "help"])
+def send_welcome(message):
+    try:
+        lang = detect(message.text)
+    except:
+        lang = 'en'
+    
+    if lang == 'fa':
+        welcome_text = "سلام! من یه دستیار هوش مصنوعی هستم. هر سوالی داری بپرس، به هر زبونی که بنویسی، همون زبون جوابت رو می‌دم."
+    else:
+        welcome_text = "Hi! I'm an AI assistant. Ask me anything, and I'll reply in the same language you use."
+    
+    bot.reply_to(message, welcome_text)
 
 @bot.message_handler(func=lambda message: True)
-def reply(message):
-    text = message.text.lower().strip()
+def handle_message(message):
+    user_id = message.from_user.id
+    user_text = message.text.strip()
     
-    if text in ["salam", "سلام", "hi", "hello"]:
-        bot.send_message(message.chat.id, "salam! chetori?\nسلام! چطوری؟")
+    if not user_text:
+        return
     
-    elif text in ["khubi?", "khubi", "خوبی؟", "خوبی", "chetori?", "chetori", "چطوری؟", "چطوری"]:
-        bot.send_message(message.chat.id, "man khubam, to chetori?\nمن خوبم، تو چطوری؟")
+    try:
+        lang = detect(user_text)
+    except:
+        lang = 'en'
     
-    elif text in ["esmet chiye?", "esmet chiye", "اسمت چیه؟", "اسمت چیه", "what is your name?", "what is your name"]:
-        bot.send_message(message.chat.id, "esmam robot hast\nاسمم ربات هست")
+    bot.send_chat_action(message.chat.id, 'typing')
     
-    elif text in ["khodahafez", "خداحافظ", "bye", "goodbye"]:
-        bot.send_message(message.chat.id, "khodahafez! movazebe khodet bash\nخداحافظ! مواظب خودت باش")
+    ai_reply = get_ai_response(user_id, user_text, lang)
     
-    else:
-        bot.send_message(message.chat.id, "nemifahmam chi migi. lotfan farsi ya engilisi benevis\nنمی‌فهمم چی می‌گی. لطفاً فارسی یا انگلیسی بنویس")
+    bot.reply_to(message, ai_reply)
 
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
