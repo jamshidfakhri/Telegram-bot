@@ -1,9 +1,11 @@
 import telebot
 import os
 import threading
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from langdetect import detect, DetectorFactory
 from openai import OpenAI
+from telebot import types
 
 DetectorFactory.seed = 0
 
@@ -28,9 +30,9 @@ def get_ai_response(user_id, user_message, user_lang):
     user_histories[user_id].append({"role": "user", "content": user_message})
     
     if user_lang == 'fa':
-        system_prompt = "You are a helpful and friendly AI assistant. The user is speaking Persian. You MUST reply in Persian (Farsi). Do not reply in any other language."
+        system_prompt = "You are a helpful AI assistant. The user is speaking Persian. You MUST reply in Persian (Farsi)."
     else:
-        system_prompt = "You are a helpful and friendly AI assistant. You MUST reply in English. Do not reply in any other language."
+        system_prompt = "You are a helpful AI assistant. You MUST reply in English."
     
     messages = [{"role": "system", "content": system_prompt}] + user_histories[user_id]
     
@@ -64,9 +66,9 @@ def send_welcome(message):
         lang = 'en'
     
     if lang == 'fa':
-        welcome_text = "سلام! من یه دستیار هوش مصنوعی هستم. هر سوالی داری بپرس، به هر زبونی که بنویسی، همون زبون جوابت رو می‌دم."
+        welcome_text = "سلام! من یه دستیار هوش مصنوعی هستم. هر سوالی داری بپرس."
     else:
-        welcome_text = "Hi! I'm an AI assistant. Ask me anything, and I'll reply in the same language you use."
+        welcome_text = "Hi! I'm an AI assistant. Ask me anything."
     
     bot.reply_to(message, welcome_text)
 
@@ -84,9 +86,7 @@ def handle_message(message):
         lang = 'en'
     
     bot.send_chat_action(message.chat.id, 'typing')
-    
     ai_reply = get_ai_response(user_id, user_text, lang)
-    
     bot.reply_to(message, ai_reply)
 
 class SimpleHandler(BaseHTTPRequestHandler):
@@ -95,15 +95,31 @@ class SimpleHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"Bot is running")
 
+    def do_POST(self):
+        if self.path == f"/{TOKEN}":
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            update = types.Update.de_json(post_data.decode('utf-8'))
+            bot.process_new_updates([update])
+            self.send_response(200)
+            self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
 def run_server():
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("0.0.0.0", port), SimpleHandler)
     server.serve_forever()
 
 if __name__ == "__main__":
+    bot.remove_webhook()
+    time.sleep(2)
+    WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://jamshids-worker.onrender.com")
+    bot.set_webhook(url=f"{WEBHOOK_URL}/{TOKEN}")
     t = threading.Thread(target=run_server)
     t.daemon = True
     t.start()
     print("bot roshan shod...")
-    bot.remove_webhook()
-    bot.infinity_polling()
+    while True:
+        time.sleep(10)
