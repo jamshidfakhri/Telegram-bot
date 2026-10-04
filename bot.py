@@ -10,13 +10,10 @@ TOKEN = os.environ.get("BOT_TOKEN")
 
 bot = telebot.TeleBot(TOKEN)
 
-# فعال کردن دکمه‌ی Menu
 bot.set_chat_menu_button(menu_button=types.MenuButtonCommands())
 
-# دیکشنری برای ذخیره اسم کاربرا
 user_names = {}
 
-# ساخت کیبورد
 def main_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn_help = types.KeyboardButton("راهنما")
@@ -24,10 +21,21 @@ def main_keyboard():
     btn_date = types.KeyboardButton("تاریخ")
     btn_about = types.KeyboardButton("درباره ربات")
     btn_setname = types.KeyboardButton("ثبت اسم")
+    btn_inline = types.KeyboardButton("منوی شیشه‌ای")
     keyboard.add(btn_help, btn_time)
     keyboard.add(btn_date, btn_about)
-    keyboard.add(btn_setname)
+    keyboard.add(btn_setname, btn_inline)
     return keyboard
+
+# ساخت دکمه‌های شیشه‌ای
+def inline_menu():
+    markup = types.InlineKeyboardMarkup()
+    btn_time = types.InlineKeyboardButton("ساعت", callback_data="show_time")
+    btn_date = types.InlineKeyboardButton("تاریخ", callback_data="show_date")
+    btn_about = types.InlineKeyboardButton("درباره ربات", callback_data="show_about")
+    markup.add(btn_time, btn_date)
+    markup.add(btn_about)
+    return markup
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
@@ -41,6 +49,10 @@ def send_welcome(message):
     
     bot.send_message(message.chat.id, text, reply_markup=main_keyboard())
 
+@bot.message_handler(commands=["menu"])
+def send_inline_menu(message):
+    bot.reply_to(message, "چه کاری می‌خوای بکنم؟", reply_markup=inline_menu())
+
 @bot.message_handler(commands=["setname"])
 def ask_name(message):
     bot.reply_to(message, "اسمت چیه؟")
@@ -51,7 +63,7 @@ def save_name(message):
     name = message.text.strip()
     
     if name == "":
-        bot.reply_to(message, "اسم نمی‌تونه خالی باشه. دوباره امتحان کن.")
+        bot.reply_to(message, "اسم نمی‌تونه خالی باشه.")
         return
     
     user_names[user_id] = name
@@ -65,7 +77,8 @@ def send_help(message):
         "ساعت - ساعت الان\n"
         "تاریخ - تاریخ امروز\n"
         "درباره ربات - درباره ربات\n"
-        "ثبت اسم - ثبت اسم خودت"
+        "ثبت اسم - ثبت اسم خودت\n"
+        "منوی شیشه‌ای - نمایش دکمه‌های شیشه‌ای"
     )
     bot.reply_to(message, text)
 
@@ -83,7 +96,7 @@ def send_date(message):
 def send_about(message):
     bot.reply_to(message, "من یه ربات تلگرام ساده هستم که با پایتون ساخته شدم.")
 
-# دکمه‌های کیبورد
+# دکمه‌های کیبورد پایین
 @bot.message_handler(func=lambda message: message.text == "راهنما")
 def btn_help(message):
     send_help(message)
@@ -103,6 +116,22 @@ def btn_about(message):
 @bot.message_handler(func=lambda message: message.text == "ثبت اسم")
 def btn_setname(message):
     ask_name(message)
+
+@bot.message_handler(func=lambda message: message.text == "منوی شیشه‌ای")
+def btn_inline(message):
+    send_inline_menu(message)
+
+# هندل کردن دکمه‌های شیشه‌ای
+@bot.callback_query_handler(func=lambda call: True)
+def handle_callback(call):
+    if call.data == "show_time":
+        now = datetime.now().strftime("%H:%M:%S")
+        bot.answer_callback_query(call.id, f"ساعت الان: {now}")
+    elif call.data == "show_date":
+        today = datetime.now().strftime("%Y-%m-%d")
+        bot.answer_callback_query(call.id, f"تاریخ امروز: {today}")
+    elif call.data == "show_about":
+        bot.answer_callback_query(call.id, "من یه ربات ساده پایتونیم!")
 
 # پیام‌های معمولی
 @bot.message_handler(func=lambda message: True)
