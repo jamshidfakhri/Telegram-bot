@@ -12,6 +12,12 @@ DetectorFactory.seed = 0
 TOKEN = os.environ.get("BOT_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
+# --- خطوط دیباگ (موقت) ---
+print("TOKEN LEN:", len(TOKEN) if TOKEN else "None")
+print("TOKEN START:", TOKEN[:10] if TOKEN else "None")
+print("TOKEN REPR:", repr(TOKEN))
+# -------------------------
+
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
