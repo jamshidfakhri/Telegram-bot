@@ -15,7 +15,7 @@ client = OpenAI(
     api_key=OPENROUTER_API_KEY,
 )
 
-MODEL_NAME = "meta-llama/llama-3.3-70b-instruct:free"
+MODEL_NAME = "google/gemma-2-9b-it:free"
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -105,4 +105,5 @@ if __name__ == "__main__":
     t.daemon = True
     t.start()
     print("bot roshan shod...")
+    bot.remove_webhook()
     bot.infinity_polling()
