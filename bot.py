@@ -2,6 +2,7 @@ import telebot
 import os
 import threading
 import time
+import sqlite3
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telebot import types
@@ -12,8 +13,40 @@ bot = telebot.TeleBot(TOKEN)
 
 bot.set_chat_menu_button(menu_button=types.MenuButtonCommands())
 
-user_names = {}
+# ---------------- دیتابیس ----------------
+DB_NAME = "bot_data.db"
 
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            name TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_user_name(user_id, name):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT OR REPLACE INTO users (user_id, name) VALUES (?, ?)",
+        (user_id, name)
+    )
+    conn.commit()
+    conn.close()
+
+def get_user_name(user_id):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+# ---------------- کیبورد ----------------
 def main_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn_help = types.KeyboardButton("راهنما")
@@ -39,12 +72,13 @@ def inline_menu():
     markup.add(btn_about)
     return markup
 
+# ---------------- دستورها ----------------
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     user_id = message.from_user.id
+    name = get_user_name(user_id)
     
-    if user_id in user_names:
-        name = user_names[user_id]
+    if name:
         text = f"سلام {name}! خوش برگشتی."
     else:
         text = "سلام! من یه ربات ساده هستم.\nاول اسمت رو ثبت کن."
@@ -68,7 +102,7 @@ def save_name(message):
         bot.reply_to(message, "اسم نمی‌تونه خالی باشه.")
         return
     
-    user_names[user_id] = name
+    save_user_name(user_id, name)
     bot.reply_to(message, f"باشه {name}، اسمت رو ذخیره کردم.")
 
 @bot.message_handler(commands=["help"])
@@ -100,19 +134,17 @@ def send_date(message):
 def send_about(message):
     bot.reply_to(message, "من یه ربات تلگرام ساده هستم که با پایتون ساخته شدم.")
 
-# ارسال عکس
 @bot.message_handler(commands=["photo"])
 def send_photo(message):
     photo_url = "https://picsum.photos/600/400"
     bot.send_photo(message.chat.id, photo_url, caption="این یه عکس نمونه‌ست.")
 
-# ارسال فایل
 @bot.message_handler(commands=["file"])
 def send_file(message):
     file_url = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
     bot.send_document(message.chat.id, file_url, caption="این یه فایل PDF نمونه‌ست.")
 
-# دکمه‌های کیبورد پایین
+# ---------------- دکمه‌های کیبورد ----------------
 @bot.message_handler(func=lambda message: message.text == "راهنما")
 def btn_help(message):
     send_help(message)
@@ -145,6 +177,7 @@ def btn_photo(message):
 def btn_file(message):
     send_file(message)
 
+# ---------------- دکمه‌های شیشه‌ای ----------------
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
     if call.data == "show_time":
@@ -156,17 +189,18 @@ def handle_callback(call):
     elif call.data == "show_about":
         bot.answer_callback_query(call.id, "من یه ربات ساده پایتونیم!")
 
-# پیام‌های معمولی
+# ---------------- پیام‌های معمولی ----------------
 @bot.message_handler(func=lambda message: True)
 def echo(message):
     user_id = message.from_user.id
+    name = get_user_name(user_id)
     
-    if user_id in user_names:
-        name = user_names[user_id]
+    if name:
         bot.reply_to(message, f"{name} جان، تو گفتی: {message.text}")
     else:
         bot.reply_to(message, f"تو گفتی: {message.text}")
 
+# ---------------- وب‌سرور ----------------
 class SimpleHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -179,6 +213,7 @@ def run_server():
     server.serve_forever()
 
 if __name__ == "__main__":
+    init_db()
     bot.remove_webhook()
     time.sleep(2)
     t = threading.Thread(target=run_server)
