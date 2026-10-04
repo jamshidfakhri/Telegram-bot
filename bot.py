@@ -105,4 +105,4 @@ if __name__ == "__main__":
     t.daemon = True
     t.start()
     print("bot roshan shod...")
-    bot.polling()
+    bot.infinity_polling()
