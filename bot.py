@@ -28,9 +28,9 @@ def get_ai_response(user_id, user_message, user_lang):
     user_histories[user_id].append({"role": "user", "content": user_message})
     
     if user_lang == 'fa':
-        system_prompt = "You are a helpful and friendly AI assistant. The user is speaking Persian. You MUST reply in Persian (Farsi)."
+        system_prompt = "You are a helpful and friendly AI assistant. The user is speaking Persian. You MUST reply in Persian (Farsi). Do not reply in any other language."
     else:
-        system_prompt = "You are a helpful and friendly AI assistant. You MUST reply in English."
+        system_prompt = "You are a helpful and friendly AI assistant. You MUST reply in English. Do not reply in any other language."
     
     messages = [{"role": "system", "content": system_prompt}] + user_histories[user_id]
     
