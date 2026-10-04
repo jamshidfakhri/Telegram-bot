@@ -9,11 +9,13 @@ from telebot import types
 
 DetectorFactory.seed = 0
 
-# --- توکن جدید تو اینجاست ---
-TOKEN = "8800225932:AAGindQF-jVVzup15nyKM4oM4xqgI4-j1vI"
-# ---------------------------
-
+TOKEN = os.environ.get("BOT_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+
+# --- خطوط دیباگ (موقت) ---
+print("TOKEN LEN:", len(TOKEN) if TOKEN else "None")
+print("TOKEN START:", TOKEN[:10] if TOKEN else "None")
+# -------------------------
 
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -119,12 +121,21 @@ def run_server():
     server.serve_forever()
 
 if __name__ == "__main__":
+    # حذف Webhook قبلی
     bot.remove_webhook()
     time.sleep(3)
     
+    # پاک کردن آپدیت‌های معلق
+    try:
+        bot.get_updates(offset=-1, timeout=1)
+    except:
+        pass
+    
+    # تنظیم Webhook جدید
     WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://jamshids-worker.onrender.com")
     bot.set_webhook(url=f"{WEBHOOK_URL}/{TOKEN}")
     
+    # اجرای وب‌سرور
     t = threading.Thread(target=run_server)
     t.daemon = True
     t.start()
