@@ -30,9 +30,9 @@ def get_ai_response(user_id, user_message, user_lang):
     user_histories[user_id].append({"role": "user", "content": user_message})
     
     if user_lang == 'fa':
-        system_prompt = "You are a helpful AI assistant. The user is speaking Persian. You MUST reply in Persian (Farsi)."
+        system_prompt = "You are a helpful and friendly AI assistant. The user is speaking Persian. You MUST reply in Persian (Farsi)."
     else:
-        system_prompt = "You are a helpful AI assistant. You MUST reply in English."
+        system_prompt = "You are a helpful and friendly AI assistant. You MUST reply in English."
     
     messages = [{"role": "system", "content": system_prompt}] + user_histories[user_id]
     
@@ -89,7 +89,7 @@ def handle_message(message):
     ai_reply = get_ai_response(user_id, user_text, lang)
     bot.reply_to(message, ai_reply)
 
-class SimpleHandler(BaseHTTPRequestHandler):
+class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
@@ -97,9 +97,9 @@ class SimpleHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == f"/{TOKEN}":
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            update = types.Update.de_json(post_data.decode('utf-8'))
+            length = int(self.headers['Content-Length'])
+            data = self.rfile.read(length)
+            update = types.Update.de_json(data.decode('utf-8'))
             bot.process_new_updates([update])
             self.send_response(200)
             self.end_headers()
@@ -107,19 +107,34 @@ class SimpleHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
+    def log_message(self, format, *args):
+        pass
+
 def run_server():
     port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
+    server = HTTPServer(("0.0.0.0", port), Handler)
     server.serve_forever()
 
 if __name__ == "__main__":
+    # ۱. حذف Webhook قبلی
     bot.remove_webhook()
-    time.sleep(2)
+    time.sleep(3)
+    
+    # ۲. پاک کردن آپدیت‌های معلق
+    try:
+        bot.get_updates(offset=-1, timeout=1)
+    except:
+        pass
+    
+    # ۳. تنظیم Webhook جدید
     WEBHOOK_URL = os.environ.get("RENDER_EXTERNAL_URL", "https://jamshids-worker.onrender.com")
     bot.set_webhook(url=f"{WEBHOOK_URL}/{TOKEN}")
+    
+    # ۴. اجرای وب‌سرور
     t = threading.Thread(target=run_server)
     t.daemon = True
     t.start()
+    
     print("bot roshan shod...")
     while True:
         time.sleep(10)
