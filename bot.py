@@ -22,12 +22,14 @@ def main_keyboard():
     btn_about = types.KeyboardButton("درباره ربات")
     btn_setname = types.KeyboardButton("ثبت اسم")
     btn_inline = types.KeyboardButton("منوی شیشه‌ای")
+    btn_photo = types.KeyboardButton("عکس")
+    btn_file = types.KeyboardButton("فایل")
     keyboard.add(btn_help, btn_time)
     keyboard.add(btn_date, btn_about)
     keyboard.add(btn_setname, btn_inline)
+    keyboard.add(btn_photo, btn_file)
     return keyboard
 
-# ساخت دکمه‌های شیشه‌ای
 def inline_menu():
     markup = types.InlineKeyboardMarkup()
     btn_time = types.InlineKeyboardButton("ساعت", callback_data="show_time")
@@ -78,7 +80,9 @@ def send_help(message):
         "تاریخ - تاریخ امروز\n"
         "درباره ربات - درباره ربات\n"
         "ثبت اسم - ثبت اسم خودت\n"
-        "منوی شیشه‌ای - نمایش دکمه‌های شیشه‌ای"
+        "منوی شیشه‌ای - نمایش دکمه‌های شیشه‌ای\n"
+        "عکس - ارسال یه عکس نمونه\n"
+        "فایل - ارسال یه فایل نمونه"
     )
     bot.reply_to(message, text)
 
@@ -95,6 +99,18 @@ def send_date(message):
 @bot.message_handler(commands=["about"])
 def send_about(message):
     bot.reply_to(message, "من یه ربات تلگرام ساده هستم که با پایتون ساخته شدم.")
+
+# ارسال عکس
+@bot.message_handler(commands=["photo"])
+def send_photo(message):
+    photo_url = "https://picsum.photos/600/400"
+    bot.send_photo(message.chat.id, photo_url, caption="این یه عکس نمونه‌ست.")
+
+# ارسال فایل
+@bot.message_handler(commands=["file"])
+def send_file(message):
+    file_url = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+    bot.send_document(message.chat.id, file_url, caption="این یه فایل PDF نمونه‌ست.")
 
 # دکمه‌های کیبورد پایین
 @bot.message_handler(func=lambda message: message.text == "راهنما")
@@ -121,7 +137,14 @@ def btn_setname(message):
 def btn_inline(message):
     send_inline_menu(message)
 
-# هندل کردن دکمه‌های شیشه‌ای
+@bot.message_handler(func=lambda message: message.text == "عکس")
+def btn_photo(message):
+    send_photo(message)
+
+@bot.message_handler(func=lambda message: message.text == "فایل")
+def btn_file(message):
+    send_file(message)
+
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
     if call.data == "show_time":
